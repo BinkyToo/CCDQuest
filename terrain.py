@@ -11,10 +11,10 @@ celltypefields = [
     ('fireignitechance',numpy.float_),
     ('fireoutchance',   numpy.float_),
     ('hasroof',         numpy.bool_),
-    ('difficulty',      numpy.int8 ),
     ('transparent',     numpy.bool_),
     ('solid',           numpy.bool_),
-    ('sogginess',       numpy.uint8)
+    ('sogginess',       numpy.uint8),
+    ('roughness',       numpy.uint8)
 ]
 
 csvcolorfields = [
