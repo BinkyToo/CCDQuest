@@ -1,0 +1,16 @@
+{
+    "name":        "Little Fortress",
+    "terrainfile": "terrain.png",
+    "itemfile":    "collectables.png",
+    "startpos":    [50,11],
+    "gemgos": {
+        "signs":   [
+            [[45,12],"Abandon hope all ye who enter here!"],
+            [[44, 30],"Nothing to see here"]
+        ],
+        "portals": [
+            [[22, 20], "menu", [24, 19]],
+            [[50, 11]]
+        ]
+    }
+}
