@@ -7,13 +7,14 @@ from colors import *
 import coords
 import config
 from directions import *
-TILESIZE = images.TILESIZE
 
 class GEPlayer(BaseMGO.GEMGO):
     """The player, exploring the grid-based world"""
     FREEPLAYER = config.get('player', 'freeplayer', bool, False)
     XRAYVISION = config.get('player', 'xrayvision', bool, False)
     POSMESSAGE = config.get('player', 'posmessage', bool, False)
+
+    MAXFUSESOG = 25 # Maximum sogginess for explosives.
 
     def __init__(self, player, world, position):
         """Initialise instance variables"""
@@ -25,13 +26,8 @@ class GEPlayer(BaseMGO.GEMGO):
         self.color = MAGENTA
         self.visibility = 15
         self.direction = RIGHT
-        self.surface = pygame.Surface(coords.mul(world.cellmap.size, TILESIZE))
+        self.surface = pygame.Surface(coords.mul(world.cellmap.size, images.TILESIZE))
         self.surface.fill(BLACK)
-        #bgtile = images.Unknown.copy()
-        #bgtile.blit(images.NonVisible, (0, 0))
-        #for ix in xrange(0, world.cellmap.size[0]*TILESIZE, TILESIZE):
-        #    for iy in xrange(0, world.cellmap.size[1]*TILESIZE, TILESIZE):
-        #        self.surface.blit(bgtile, (ix, iy))
         self.setup()
 
     def setup(self):
@@ -82,8 +78,9 @@ class GEPlayer(BaseMGO.GEMGO):
         if abs(x) + abs(y) != 1:
             return False
         self.direction = (x, y)
-        if self.cellmap[coords.sum(self.position, (x, y))]['solid'] and not GEPlayer.FREEPLAYER:
-            self.score[collectables.CHOCOLATE] -= 50
+        if ((self.cellmap[coords.sum(self.position, (x, y))]['solid'] or
+             self.cellmap[coords.sum(self.position, (x, y))]['sogginess'] == 100) and
+            not GEPlayer.FREEPLAYER):
             return False
         self.position = coords.modsum(self.position, self.direction, self.cellmap.size)
         collectable = self.cellmap[self.position]['collectableitem']
@@ -93,7 +90,7 @@ class GEPlayer(BaseMGO.GEMGO):
         self.cellmap[self.position]['collectableitem'] = 0
         if not GEPlayer.FREEPLAYER:
             self.score[collectables.CHOCOLATE] -= self.terraincost()
-        if self.layingfuse and self.cellmap[self.position]['sogginess'] < 25:
+        if self.layingfuse and self.cellmap[self.position]['sogginess'] < GEPlayer.MAXFUSESOG:
             self.cellmap.placefuse(self.position)
         return True
 
@@ -103,7 +100,7 @@ class GEPlayer(BaseMGO.GEMGO):
         oldpos = subtuple(self.position, self.direction)
         pathnbrs = []
         for nbrpos in coords.neighbours(self.position):
-            if (nbrpos == oldpos) or (self.cellmap[nbrpos]['name'] not in ['wooden planking', 'paving']):
+            if (nbrpos == oldpos) or (self.cellmap[nbrpos]['roughness'] > 2):
                 continue
             pathnbrs.append(nbrpos)
         if len(pathnbrs) != 1:
@@ -115,7 +112,7 @@ class GEPlayer(BaseMGO.GEMGO):
         """Detonate carried explosives at player's location"""
         if self.score[collectables.DYNAMITE] <= 0:
             return
-        if not self.cellmap[self.position]['destructable']:
+        if self.cellmap[self.position]['sogginess'] >= GEPlayer.MAXFUSESOG:
             return
         self._suggestmessage("You detonate some dynamite", 4)
         self.cellmap.detonate(self.position)
@@ -150,27 +147,8 @@ class GEPlayer(BaseMGO.GEMGO):
         return cost
 
     def updatevisible(self):
-        """Calculate and return the set of tiles visible to player"""
-        self.visibletiles = set()
-        self.visibletiles.add(self.position)
-
-        def inrange(a):
-            return ((a[0]-self.position[0])**2 + (a[1]-self.position[1])**2 < self.visibility**2)
-        for outdir in CARDINALS:
-            trunkpos = self.position
-            while inrange(trunkpos):
-                self.visibletiles.add(coords.mod(trunkpos, self.cellmap.size))
-                for perpdir in perpendiculars(outdir):
-                    diagdir = coords.sum(outdir, perpdir)
-                    branchpos = trunkpos
-                    while inrange(branchpos):
-                        self.visibletiles.add(coords.mod(branchpos, self.cellmap.size))
-                        if not GEPlayer.XRAYVISION and not self.cellmap[branchpos]['transparent']:
-                            break
-                        branchpos = coords.sum(branchpos, diagdir)
-                if not GEPlayer.XRAYVISION and not self.cellmap[trunkpos]['transparent']:
-                    break
-                trunkpos = coords.sum(trunkpos, outdir)
+        self.visibletiles = BaseMGO.visibletiles(self.position, self.cellmap,
+                                                 self.visibility, GEPlayer.XRAYVISION)
 
         for tile in self.visibletiles:
             cell = self.cellmap[tile]
