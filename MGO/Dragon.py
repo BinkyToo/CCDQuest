@@ -19,17 +19,6 @@ class Dragon(BaseMGO.GEMGO):
 
     def update(self, world):
         """Fly toward the player if nearby, or continue in same direction"""
-        def tileoffset(a, b, size):
-            offset = [0, 0]
-            for axis in [0, 1]:
-                subtract = b[axis] - a[axis]
-                absubtract = abs(subtract)
-                if absubtract*2 <= size:
-                    offset[axis] = subtract
-                else:
-                    offset[axis] = (size-absubtract) * cmp(0, subtract)
-            return offset
-
         def flameplayer():
             fronttiles = [coords.sum(self.position, coords.mul(self.direction, i)) for i in range(1,4)]
             for tile in fronttiles:
@@ -43,8 +32,8 @@ class Dragon(BaseMGO.GEMGO):
         self.hunting = None
         for player in world.players:
             playerpos = player.position
-            if not self.cellmap[playerpos]['top'] and not self.cellmap[playerpos]['hasroof'] and random.random() < Dragon.speed:
-                offset = tileoffset(self.position, playerpos, self.cellmap.size)
+            if not self.cellmap[playerpos]['covered'] and random.random() < Dragon.speed:
+                offset = coords.tileoffset(self.position, playerpos, self.cellmap.size)
                 if offset[0]**2 + offset[1]**2 <= Dragon.detectionrange**2:
                     self.hunting = player
         if self.hunting:
@@ -68,6 +57,16 @@ class Dragon(BaseMGO.GEMGO):
 
         self.position = coords.modsum(self.position, self.direction, self.cellmap.size)
         flameplayer()
+
+    @classmethod
+    def place(cls, cellmap):
+        """Create dragons in random positions"""
+        created = []
+        for i in xrange(int(cellmap.size[0]*cellmap.size[1]*cls.PER_TILE)):
+            attempt = (random.randint(0, cellmap.size[0]-1),
+                       random.randint(0, cellmap.size[1]-1))
+            created.append(cls(attempt, cellmap))
+        return created
 
     def sprite(self, player):
         isvisible = False
